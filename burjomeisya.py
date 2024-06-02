@@ -96,6 +96,14 @@ def save_transaction(transaction_date, description, debit_account, debit_amount,
     conn.commit()
     conn.close()
 
+# Fungsi untuk menghapus transaksi dari database
+def delete_transaction(transaction_id):
+    conn = sqlite3.connect('transactions.db')
+    c = conn.cursor()
+    c.execute('DELETE FROM transactions WHERE id = ?', (transaction_id,))
+    conn.commit()
+    conn.close()
+
 # Fungsi untuk menampilkan jurnal umum dari database
 def show_general_ledger():
     conn = sqlite3.connect('transactions.db')
@@ -103,27 +111,43 @@ def show_general_ledger():
     conn.close()
     st.title("Jurnal Umum")
     st.write(df)
-    
+
+    # Input teks untuk menghapus transaksi berdasarkan ID
+    transaction_id = st.text_input("Enter Transaction ID to Delete")
+
+    # Tombol untuk menghapus transaksi
+    if st.button("Delete"):
+        if transaction_id.strip() == "":
+            st.warning("Please enter a valid transaction ID.")
+        else:
+            try:
+                transaction_id = int(transaction_id)
+                delete_transaction(transaction_id)
+                st.success(f"Transaction {transaction_id} deleted successfully!")
+                st.experimental_rerun()
+            except ValueError:
+                st.error("Invalid transaction ID. Please enter a valid integer ID.")
+
     # Menghitung saldo akun
     account_balances = calculate_account_balance()
-    
+
     # Menampilkan buku besar sebagai tabel
     st.title("Neraca Saldo")
-    
+
     # Buat DataFrame untuk tabel neraca saldo
     ledger_table = pd.DataFrame(list(account_balances.items()), columns=['Account', 'Balance'])
-    
+
     # Hitung total saldo dari semua akun
     total_balance = sum(account_balances.values())
-    
+
     # Menambahkan total saldo ke dalam tabel buku besar
     ledger_table.loc[len(ledger_table)] = ['Total', total_balance]
-    
+
     # Format balance tanpa tambahan nol dan dengan koma setiap 3 digit
     ledger_table['Balance'] = ledger_table['Balance'].apply(lambda x: f"{x:,.2f}".rstrip('0').rstrip('.'))
-    
+
     st.table(ledger_table)
-    
+
     # Menampilkan neraca saldo dengan rincian akun debit dan kredit
     trial_balance_df = calculate_trial_balance()
     st.title("Buku Besar")
@@ -181,7 +205,7 @@ def calculate_account_balance():
                             FROM transactions \
                             GROUP BY debit_account, credit_account", conn)
     conn.close()
-    
+
     # Menggabungkan debet dan kredit berdasarkan akun
     account_balances = {}
     for index, row in df.iterrows():
@@ -189,15 +213,15 @@ def calculate_account_balance():
         credit_account = row['credit_account']
         total_debit = row['total_debit']
         total_credit = row['total_credit']
-        
+
         if debit_account not in account_balances:
             account_balances[debit_account] = 0
         if credit_account not in account_balances:
             account_balances[credit_account] = 0
-        
+
         account_balances[debit_account] += total_debit
         account_balances[credit_account] -= total_credit
-    
+
     return account_balances
 
 def calculate_trial_balance():
@@ -205,44 +229,44 @@ def calculate_trial_balance():
     df_debit = pd.read_sql_query("SELECT debit_account, SUM(debit_amount) AS total_debit FROM transactions GROUP BY debit_account", conn)
     df_credit = pd.read_sql_query("SELECT credit_account, SUM(credit_amount) AS total_credit FROM transactions GROUP BY credit_account", conn)
     conn.close()
-    
+
     # Gabungkan dataframe debit dan kredit
     trial_balance_df = pd.merge(df_debit, df_credit, left_on='debit_account', right_on='credit_account', how='outer')
-    
+
     # Ubah nilai NaN menjadi 0
     trial_balance_df = trial_balance_df.fillna(0)
-    
+
     # Hitung saldo akhir untuk setiap akun
     trial_balance_df['Balance'] = trial_balance_df['total_debit'] - trial_balance_df['total_credit']
-    
+
     # Format balance tanpa tambahan nol dan dengan koma setiap 3 digit
     trial_balance_df['Balance'] = trial_balance_df['Balance'].apply(lambda x: f"{x:,.2f}".rstrip('0').rstrip('.'))
-    
+
     return trial_balance_df
 
 def calculate_profit_and_loss():
     conn = sqlite3.connect('transactions.db')
-    
+
     # Menghitung total penjualan
     df_sales = pd.read_sql_query("SELECT SUM(credit_amount) AS total_sales FROM transactions WHERE credit_account = 'Penjualan'", conn)
     total_sales = df_sales['total_sales'][0] if not pd.isnull(df_sales['total_sales'][0]) else 0.0
-    
+
     # Menghitung total pendapatan lainnya (jika ada)
     df_other_income = pd.read_sql_query("SELECT SUM(credit_amount) AS total_income FROM transactions WHERE credit_account = 'Pendapatan'", conn)
     total_other_income = df_other_income['total_income'][0] if not pd.isnull(df_other_income['total_income'][0]) else 0.0
-    
+
     total_income = total_sales + total_other_income
 
     # Menghitung total biaya
     df_expenses = pd.read_sql_query("SELECT SUM(debit_amount) AS total_expenses FROM transactions WHERE debit_account = 'Biaya'", conn)
     total_expenses = df_expenses['total_expenses'][0] if not pd.isnull(df_expenses['total_expenses'][0]) else 0.0
-    
+
     # Menghitung total pembelian
     df_purchases = pd.read_sql_query("SELECT SUM(debit_amount) AS total_purchases FROM transactions WHERE debit_account = 'Pembelian'", conn)
     total_purchases = df_purchases['total_purchases'][0] if not pd.isnull(df_purchases['total_purchases'][0]) else 0.0
-    
+
     conn.close()
-    
+
     return total_income, total_expenses, total_purchases
 
 def show_profit_and_loss():
@@ -274,6 +298,29 @@ def show_inventory():
         inventory_df.drop(columns=['Total Price'], inplace=True)
     st.write(inventory_df)
 
+    # Input teks untuk menghapus item berdasarkan ID
+    item_id = st.text_input("Enter Item ID to Delete")
+
+    # Tombol untuk menghapus item
+    if st.button("Delete"):
+        if item_id.strip() == "":
+            st.warning("Please enter a valid item ID.")
+        else:
+            try:
+                item_id = int(item_id)
+                delete_inventory_item(item_id)
+                st.success(f"Item {item_id} deleted successfully!")
+                st.experimental_rerun()
+            except ValueError:
+                st.error("Invalid item ID. Please enter a valid integer ID.")
+
+def delete_inventory_item(item_id):
+    conn = sqlite3.connect('transactions.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM inventory WHERE id=?", (item_id,))
+    conn.commit()
+    conn.close()
+
 def add_inventory_item():
     st.title("Add New Inventory Item")
     # Tampilkan form untuk menambah item baru ke persediaan
@@ -287,12 +334,12 @@ def add_inventory_item():
         c.execute("INSERT INTO inventory (item_name, quantity, price) VALUES (?, ?, ?)", (item_name, item_quantity, item_price))
         conn.commit()
         conn.close()
-        
+
         # Tambahkan transaksi pembelian ke jurnal umum
         purchase_description = f"Purchase {item_quantity} units of {item_name}"
         total_amount = item_quantity * item_price
         save_transaction(pd.Timestamp.now().date(), purchase_description, "Pembelian", total_amount, "Kas", total_amount)
-        
+
         st.success("Item added and transaction recorded successfully!")
 
 def sell_item():
@@ -330,7 +377,7 @@ def main():
         st.session_state['register'] = False
 
     if st.session_state['logged_in']:
-        nav_option = st.sidebar.selectbox("Navigation", ["Home", "Menu List", "Inventory", "Transaction", "General Ledger", "Profit and Loss", "Contact", "Logout"])
+        nav_option = st.sidebar.radio("Navigation", ["Home", "Menu List", "Inventory", "Transaction", "General Ledger", "Profit and Loss", "Contact", "Logout"])
 
         if nav_option == "Home":
             show_home()
