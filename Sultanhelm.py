@@ -2,6 +2,12 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 
+st.set_page_config(
+    page_title="Sultan Helm",
+    page_icon=":helmet_with_white_cross:",
+    layout="wide",
+    initial_sidebar_state="expanded", 
+)
 # Database setup
 conn = sqlite3.connect('users.db')
 c = conn.cursor()
@@ -32,6 +38,7 @@ def register_user(username, password):
         return True
     except sqlite3.IntegrityError:
         return False
+
 
 # Function to display the login page
 def login_page():
@@ -155,27 +162,41 @@ def show_general_ledger():
 
 def show_home():
     st.title("About Us")
-    st.write("Burjo Meisya adalah restoran milik keluarga yang telah menyajikan makanan lezat untuk pelanggan kami selama lebih dari 3 tahun. Misi kami adalah menyediakan makanan berkualitas tinggi dan terjangkau dengan layanan pelanggan yang sangat baik.")
-    st.write("Di Burjo Meisya, kami bangga menggunakan bahan-bahan segar dan resep otentik untuk menciptakan hidangan yang memuaskan dan berkesan. Terima kasih telah memilih Burjo Meisya, di mana makanan enak dan waktu yang menyenangkan selalu ada di menu!")
+    st.write("Selamat datang di Sultan Helm, destinasi utama bagi para pecinta sepeda motor yang mengutamakan keselamatan, kenyamanan, dan gaya dalam berkendara. Kami adalah toko helm terpercaya yang berdedikasi untuk menyediakan helm berkualitas tinggi dengan desain terkini dan fitur keselamatan terbaik")
+    st.write("Dengan pengalaman bertahun-tahun di industri otomotif, kami memahami pentingnya perlindungan kepala saat berkendara. Oleh karena itu, kami hanya bekerja sama dengan merek helm ternama dan teruji, untuk memastikan setiap produk yang kami tawarkan memenuhi standar keamanan internasional.")
+    st.write("Di Sultan Helm, kami tidak hanya fokus pada keamanan, tetapi juga kenyamanan dan gaya. Kami memiliki berbagai macam helm, mulai dari helm full-face, half-face, modular, hingga helm retro dan klasik, yang dirancang untuk berbagai jenis pengendara dan preferensi.")
 
 def show_menu_list():
-    st.title("Food Menu List")
-    st.write("Here are some food menus that we provide:")
-    st.write("- Mie Tante        7K")
-    st.write("- Mie Dok-Dok     12K")
-    st.write("- Mie Telur       11K")
-    st.write("- Nasi Omlet      13K")
-    st.write("- Nasi Gila       15K")
-    st.write("- Es Teh/Panas     3K")
-    st.write("- ES Kopi Hitam    4K")
-    st.write("- Es Kukubima      4K")
-    st.write("- Es Soda Gembira 11K")
-    st.write("- Es Susu          4K")
+    st.title("Catalog Product")
+    st.write("Here are some catalog product that we provide:")
+    st.write("- Hijab Cargloss   190K")
+    st.write("- Cargloss KW      195K")
+    st.write("- Day              230K")
+    st.write("- KYT DJ Maru      335K")
+    st.write("- Classic GTX      160K")
+    st.write("- VOG Extreme      250K")
+    st.write("- Classic Baru     125K")
+    st.write("- HRV              185K")
+    st.write("- JS               295K")
+    st.write("- Leopard          240K")
+    st.write("- Kaca Cembung      50K")
+    st.write("- Kanebo            22K")
+    st.write("- Pet Polos         20K")
+    st.write("- Kaca Injak Orange 60K")
+    st.write("- Kaca Injak Pink   50K")
+    st.write("- Pengait           10K")
+    st.write("- Baut               5K")
+    st.write("- Plastic JC        15K")
+    st.write("- Reflecta JC       80K")
+    st.write("- Kaca Cencen       35K")
+    st.write("- Kaca Vitano       50K")
+    st.write("- Cencen Vitano     70K")
+    
 
 def show_contact():
     st.title("Contact Us")
-    st.write("Address: Jl. Raya Banaran, Sekaran, Kec. Gn. Pati, Kota Semarang, Jawa Tengah 50229")
-    st.write("Email: burjomeisya@gmail.com")
+    st.write("Address: Jl. Taman Siswa No.10, RT.1/RW.2, Sekaran, Kec. Gn. Pati, Kota Semarang, Jawa Tengah 50229")
+    st.write("Email: sultanhelm@gmail.com")
     st.write("Phone: +628123456789")
 
 def show_transaction():
@@ -368,7 +389,7 @@ def sell_item():
 def main():
     connect_database()  # Panggil fungsi untuk membuat/hubungkan database
 
-    st.title("Burjo Meisya")
+    st.title("Sultan Helm")
 
     # Logika navigasi login dan logout
     if 'logged_in' not in st.session_state:
@@ -377,11 +398,11 @@ def main():
         st.session_state['register'] = False
 
     if st.session_state['logged_in']:
-        nav_option = st.sidebar.radio("Navigation", ["Home", "Menu List", "Inventory", "Transaction", "General Ledger", "Profit and Loss", "Contact", "Logout"])
+        nav_option = st.sidebar.radio("Navigation", ["Home", "Catalog Product", "Inventory", "Transaction", "General Ledger", "Profit and Loss", "Contact", "Logout"])
 
         if nav_option == "Home":
             show_home()
-        elif nav_option == "Menu List":
+        elif nav_option == "Catalog Product":
             show_menu_list()
         elif nav_option == "Inventory":
             show_inventory()
