@@ -310,19 +310,16 @@ def show_profit_and_loss():
 
 def show_inventory():
     st.title("Inventory Management")
+    
     # Tampilkan daftar item persediaan dari database
     conn = sqlite3.connect('transactions.db')
     inventory_df = pd.read_sql_query("SELECT * FROM inventory", conn)
     conn.close()
-    # Hapus kolom 'Total Price' dari DataFrame
-    if 'Total Price' in inventory_df.columns:
-        inventory_df.drop(columns=['Total Price'], inplace=True)
+
     st.write(inventory_df)
 
     # Input teks untuk menghapus item berdasarkan ID
     item_id = st.text_input("Enter Item ID to Delete")
-
-    # Tombol untuk menghapus item
     if st.button("Delete"):
         if item_id.strip() == "":
             st.warning("Please enter a valid item ID.")
@@ -334,6 +331,16 @@ def show_inventory():
                 st.experimental_rerun()
             except ValueError:
                 st.error("Invalid item ID. Please enter a valid integer ID.")
+                
+def update_inventory_table():
+    conn = sqlite3.connect('transactions.db')
+    c = conn.cursor()
+    c.execute("PRAGMA table_info(inventory)")
+    columns = [column[1] for column in c.fetchall()]
+    if 'date' not in columns:
+        c.execute("ALTER TABLE inventory ADD COLUMN date TEXT")
+    conn.commit()
+    conn.close()
 
 def delete_inventory_item(item_id):
     conn = sqlite3.connect('transactions.db')
@@ -344,35 +351,53 @@ def delete_inventory_item(item_id):
 
 def add_inventory_item():
     st.title("Add New Inventory Item")
-    # Tampilkan form untuk menambah item baru ke persediaan
+
+    # Form input untuk menambah item
     item_name = st.text_input("Item Name")
     item_quantity = st.number_input("Quantity", min_value=0)
     item_price = st.number_input("Price", min_value=0.0)
+    item_date = st.date_input("Date", value=pd.Timestamp.now().date())
+
     if st.button("Add Item"):
         # Simpan item baru ke database
         conn = sqlite3.connect('transactions.db')
         c = conn.cursor()
-        c.execute("INSERT INTO inventory (item_name, quantity, price) VALUES (?, ?, ?)", (item_name, item_quantity, item_price))
+        c.execute("INSERT INTO inventory (item_name, quantity, price, date) VALUES (?, ?, ?, ?)",
+                  (item_name, item_quantity, item_price, item_date))
         conn.commit()
         conn.close()
 
         # Tambahkan transaksi pembelian ke jurnal umum
         purchase_description = f"Purchase {item_quantity} units of {item_name}"
         total_amount = item_quantity * item_price
-        save_transaction(pd.Timestamp.now().date(), purchase_description, "Pembelian", total_amount, "Kas", total_amount)
+        save_transaction(item_date, purchase_description, "Pembelian", total_amount, "Kas", total_amount)
 
         st.success("Item added and transaction recorded successfully!")
 
+
 def sell_item():
     st.title("Sell Item from Inventory")
-    # Tampilkan form untuk menjual item dari persediaan
+    update_inventory_table()  # Perbarui tabel untuk menambah kolom tanggal jika belum ada
+
+    # Pilihan untuk menjual item
     conn = sqlite3.connect('transactions.db')
     inventory_df = pd.read_sql_query("SELECT * FROM inventory", conn)
     conn.close()
+
+    if inventory_df.empty:
+        st.warning("No items available in inventory.")
+        return
+
     item_options = inventory_df['item_name'].tolist()
     selected_item = st.selectbox("Select Item to Sell", item_options)
     selling_price = st.number_input("Selling Price per Unit", min_value=0.0)
-    quantity_to_sell = st.number_input("Quantity to Sell", min_value=0, max_value=inventory_df[inventory_df['item_name'] == selected_item]['quantity'].values[0])
+    quantity_to_sell = st.number_input(
+        "Quantity to Sell", 
+        min_value=0, 
+        max_value=int(inventory_df[inventory_df['item_name'] == selected_item]['quantity'].values[0])
+    )
+    sell_date = st.date_input("Date", value=pd.Timestamp.now().date())
+
     if st.button("Sell Item"):
         # Kurangi jumlah stok dari persediaan
         conn = sqlite3.connect('transactions.db')
@@ -380,10 +405,12 @@ def sell_item():
         c.execute("UPDATE inventory SET quantity = quantity - ? WHERE item_name = ?", (quantity_to_sell, selected_item))
         conn.commit()
         conn.close()
+
         # Tambahkan transaksi penjualan ke jurnal umum
         sell_description = f"Selling {quantity_to_sell} units of {selected_item}"
         total_amount = quantity_to_sell * selling_price
-        save_transaction(pd.Timestamp.now().date(), sell_description, "Kas", total_amount, "Penjualan", total_amount)
+        save_transaction(sell_date, sell_description, "Kas", total_amount, "Penjualan", total_amount)
+
         st.success("Item sold successfully!")
 
 def main():
