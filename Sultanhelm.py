@@ -310,11 +310,14 @@ def show_profit_and_loss():
 
 def show_inventory():
     st.title("Inventory Management")
-    
+
     # Tampilkan daftar item persediaan dari database
     conn = sqlite3.connect('transactions.db')
     inventory_df = pd.read_sql_query("SELECT * FROM inventory", conn)
     conn.close()
+
+    if 'date' in inventory_df.columns:
+        inventory_df['date'] = pd.to_datetime(inventory_df['date']).dt.strftime('%Y-%m-%d')
 
     st.write(inventory_df)
 
@@ -374,10 +377,8 @@ def add_inventory_item():
 
         st.success("Item added and transaction recorded successfully!")
 
-
 def sell_item():
     st.title("Sell Item from Inventory")
-    update_inventory_table()  # Perbarui tabel untuk menambah kolom tanggal jika belum ada
 
     # Pilihan untuk menjual item
     conn = sqlite3.connect('transactions.db')
@@ -390,28 +391,43 @@ def sell_item():
 
     item_options = inventory_df['item_name'].tolist()
     selected_item = st.selectbox("Select Item to Sell", item_options)
+
+    # Dapatkan stok item yang dipilih
+    item_stock = inventory_df[inventory_df['item_name'] == selected_item]['quantity'].values[0]
+
     selling_price = st.number_input("Selling Price per Unit", min_value=0.0)
     quantity_to_sell = st.number_input(
-        "Quantity to Sell", 
-        min_value=0, 
-        max_value=int(inventory_df[inventory_df['item_name'] == selected_item]['quantity'].values[0])
+        "Quantity to Sell",
+        min_value=0,
+        max_value=int(item_stock),  # Pastikan jumlah tidak lebih dari stok tersedia
+        step=1
     )
-    sell_date = st.date_input("Date", value=pd.Timestamp.now().date())
+    sell_date = st.date_input("Date", value=pd.Timestamp.now().date(), key="sell_date")
+
 
     if st.button("Sell Item"):
-        # Kurangi jumlah stok dari persediaan
-        conn = sqlite3.connect('transactions.db')
-        c = conn.cursor()
-        c.execute("UPDATE inventory SET quantity = quantity - ? WHERE item_name = ?", (quantity_to_sell, selected_item))
-        conn.commit()
-        conn.close()
+        if quantity_to_sell == 0:
+            st.warning("Please select a quantity greater than 0.")
+        else:
+            # Kurangi jumlah stok dari persediaan
+            conn = sqlite3.connect('transactions.db')
+            c = conn.cursor()
 
-        # Tambahkan transaksi penjualan ke jurnal umum
-        sell_description = f"Selling {quantity_to_sell} units of {selected_item}"
-        total_amount = quantity_to_sell * selling_price
-        save_transaction(sell_date, sell_description, "Kas", total_amount, "Penjualan", total_amount)
+            try:
+                # Update inventory untuk mengurangi stok
+                c.execute("UPDATE inventory SET quantity = quantity - ? WHERE item_name = ?", (quantity_to_sell, selected_item))
+                conn.commit()
 
-        st.success("Item sold successfully!")
+                # Tambahkan transaksi penjualan ke jurnal umum
+                sell_description = f"Selling {quantity_to_sell} units of {selected_item}"
+                total_amount = quantity_to_sell * selling_price
+                save_transaction(sell_date, sell_description, "Kas", total_amount, "Penjualan", total_amount)
+
+                st.success(f"Item '{selected_item}' sold successfully!")
+            except sqlite3.Error as e:
+                st.error(f"Error processing sale: {e}")
+            finally:
+                conn.close()
 
 def main():
     connect_database()  # Panggil fungsi untuk membuat/hubungkan database
