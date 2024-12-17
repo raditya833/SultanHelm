@@ -1,4 +1,5 @@
 import streamlit as st
+from datetime import datetime
 import pandas as pd
 import sqlite3
 
@@ -82,18 +83,21 @@ def register_page():
 
 # Fungsi untuk membuat atau menghubungkan database
 def connect_database():
-    conn = sqlite3.connect('transactions.db')  # Nama database: transactions.db
+    conn = sqlite3.connect('transactions.db')
     c = conn.cursor()
-    # Buat tabel transactions jika belum ada
-    c.execute('''CREATE TABLE IF NOT EXISTS transactions
-                 (id INTEGER PRIMARY KEY, transaction_date TEXT, description TEXT,
-                 debit_account TEXT, debit_amount REAL, credit_account TEXT, credit_amount REAL)''')
     # Buat tabel inventory jika belum ada
-    c.execute('''CREATE TABLE IF NOT EXISTS inventory
-                 (id INTEGER PRIMARY KEY, item_name TEXT, quantity INTEGER, price REAL)''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS inventory (
+            id INTEGER PRIMARY KEY,
+            item_name TEXT,
+            quantity INTEGER,
+            price REAL,
+            date TEXT
+        )
+    ''')
     conn.commit()
     conn.close()
-
+    
 # Fungsi untuk menyimpan transaksi ke dalam database
 def save_transaction(transaction_date, description, debit_account, debit_amount, credit_account, credit_amount):
     conn = sqlite3.connect('transactions.db')
@@ -334,6 +338,23 @@ def show_inventory():
                 st.experimental_rerun()
             except ValueError:
                 st.error("Invalid item ID. Please enter a valid integer ID.")
+
+def view_inventory_items():
+    st.header("Inventory List")
+    try:
+        conn = sqlite3.connect('transactions.db')
+        c = conn.cursor()
+        c.execute("SELECT * FROM inventory")
+        data = c.fetchall()
+        conn.close()
+
+        if data:
+            for row in data:
+                st.write(f"ID: {row[0]}, Name: {row[1]}, Quantity: {row[2]}, Price: {row[3]}, Date: {row[4]}")
+        else:
+            st.info("No items found in inventory.")
+    except sqlite3.Error as e:
+        st.error(f"Database error: {e}")
                 
 def update_inventory_table():
     conn = sqlite3.connect('transactions.db')
@@ -353,29 +374,36 @@ def delete_inventory_item(item_id):
     conn.close()
 
 def add_inventory_item():
-    st.title("Add New Inventory Item")
-
-    # Form input untuk menambah item
+    st.header("Add Item to Inventory")
+    
+    # Input dari pengguna
     item_name = st.text_input("Item Name")
-    item_quantity = st.number_input("Quantity", min_value=0)
-    item_price = st.number_input("Price", min_value=0.0)
-    item_date = st.date_input("Date", value=pd.Timestamp.now().date())
+    item_quantity = st.number_input("Quantity", min_value=0, step=1)
+    item_price = st.number_input("Price", min_value=0.0, step=0.01)
+    item_date = st.date_input("Date", value=datetime.now().date())
 
+    # Validasi dan eksekusi query
     if st.button("Add Item"):
-        # Simpan item baru ke database
-        conn = sqlite3.connect('transactions.db')
-        c = conn.cursor()
-        c.execute("INSERT INTO inventory (item_name, quantity, price, date) VALUES (?, ?, ?, ?)",
-                  (item_name, item_quantity, item_price, item_date))
-        conn.commit()
-        conn.close()
-
-        # Tambahkan transaksi pembelian ke jurnal umum
-        purchase_description = f"Purchase {item_quantity} units of {item_name}"
-        total_amount = item_quantity * item_price
-        save_transaction(item_date, purchase_description, "Pembelian", total_amount, "Kas", total_amount)
-
-        st.success("Item added and transaction recorded successfully!")
+        if not item_name.strip():
+            st.warning("Item name cannot be empty.")
+        elif item_quantity <= 0:
+            st.warning("Quantity must be greater than 0.")
+        elif item_price <= 0.0:
+            st.warning("Price must be greater than 0.")
+        else:
+            try:
+                conn = sqlite3.connect('transactions.db')
+                c = conn.cursor()
+                # Debugging (opsional)
+                st.write(f"Debug: {item_name}, {item_quantity}, {item_price}, {item_date}")
+                # Eksekusi query
+                c.execute("INSERT INTO inventory (item_name, quantity, price, date) VALUES (?, ?, ?, ?)",
+                          (item_name, item_quantity, item_price, item_date))
+                conn.commit()
+                conn.close()
+                st.success("Item added successfully!")
+            except sqlite3.Error as e:
+                st.error(f"Database error: {e}")
 
 def sell_item():
     st.title("Sell Item from Inventory")
