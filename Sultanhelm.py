@@ -98,6 +98,21 @@ def connect_database():
     conn.commit()
     conn.close()
     
+def connect_to_db():
+    try:
+        conn = sqlite3.connect("database_name.db")
+        return conn
+    except sqlite3.Error as e:
+        st.error(f"Gagal terhubung ke database: {e}")
+        return None
+
+def get_data_from_db(query, conn):
+    try:
+        return pd.read_sql_query(query, conn)
+    except pd.io.sql.DatabaseError as e:
+        st.error(f"Error saat membaca database: {e}")
+        return pd.DataFrame()
+    
 # Fungsi untuk menyimpan transaksi ke dalam database
 def save_transaction(transaction_date, description, debit_account, debit_amount, credit_account, credit_amount):
     conn = sqlite3.connect('transactions.db')
