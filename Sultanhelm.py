@@ -1,4 +1,5 @@
 import streamlit as st
+from sqlite3 import Error
 from datetime import datetime
 import pandas as pd
 import sqlite3
@@ -97,6 +98,26 @@ def connect_database():
     ''')
     conn.commit()
     conn.close()
+    
+def create_connection(db_file):
+    """ create a database connection to the SQLite database """
+    conn = None
+    try:
+        conn = sqlite3.connect(db_file)
+        return conn
+    except Error as e:
+        st.error(f"Error connecting to database: {e}")
+    return conn
+
+def check_table_exists(conn, table_name):
+    """ Check if a specific table exists in the database """
+    try:
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'")
+        return cursor.fetchone() is not None
+    except Error as e:
+        st.error(f"Error checking table existence: {e}")
+        return False
     
 def connect_to_db():
     try:
